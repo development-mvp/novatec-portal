@@ -1,0 +1,48 @@
+name: Deploy Novatec Portal
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install deps
+        run: npm install --omit=dev
+
+      - name: Package app
+        run: zip -r release.zip . -x ".git/*" ".github/*"
+
+      - name: Deploy to Azure Web App
+        uses: azure/webapps-deploy@v2
+        with:
+          app-name: portal-novatec
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          package: release.zip
+
+  smoke-test:     # 👈 ojo: mismo nivel que build-and-deploy
+    needs: build-and-deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Smoke test (retry /health)
+        env:
+          SMOKE_URL: https://portal-novatec-dafgc5bse6ayh5h8.canadacentral-01.azurewebsites.net/health
+        run: |
+          for i in {1..20}; do
+            code=$(curl -sS -o /dev/null -w "%{http_code}" "$SMOKE_URL" || echo "000")
+            echo "Attempt $i -> $code"
+            if [ "$code" = "200" ]; then
+              echo "Healthcheck OK"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "ERROR: last status $code"
+          exit 1
