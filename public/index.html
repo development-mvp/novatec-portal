@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Demo de Matrícula y Pagos</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --panel: #111827;
+      --muted: #6b7280;
+      --text: #e5e7eb;
+      --acc: #22c55e;
+      --acc-2: #3b82f6;
+      --danger: #ef4444;
+      --card: #0b1220;
+      --border: #1f2937;
+      --radius: 16px;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica Neue, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+      background: radial-gradient(1200px 800px at 100% -100%, #1f2937 0%, rgba(31,41,55,0) 60%),
+                  radial-gradient(1000px 600px at -20% 120%, #0ea5e9 0%, rgba(14,165,233,0) 55%),
+                  var(--bg);
+      color: var(--text);
+    }
+    header { padding: 24px; display: grid; gap: 6px; text-align: center; }
+    header h1 { margin: 0; font-size: clamp(1.3rem, 3vw, 1.8rem); letter-spacing: .2px; }
+    header p { margin: 0; color: var(--muted); }
+
+    .container { max-width: 1100px; margin: 0 auto; padding: 20px; }
+    .grid { display: grid; grid-template-columns: 1.2fr .8fr; gap: 16px; }
+    @media (max-width: 980px) { .grid { grid-template-columns: 1fr; } }
+
+    .card { background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02)); border: 1px solid var(--border); border-radius: var(--radius); overflow: clip; box-shadow: 0 10px 30px rgba(0,0,0,.35); }
+    .card h2 { margin: 0; padding: 18px 22px; border-bottom: 1px solid var(--border); background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,0)); font-size: 1.05rem; }
+    .card .content { padding: 18px 22px; display: grid; gap: 14px; }
+
+    label { display: grid; gap: 6px; font-size: .92rem; color: #cbd5e1; }
+    input, select, textarea {
+      width: 100%; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--border);
+      background: #0b1220; color: var(--text); outline: none; transition: border .15s ease;
+    }
+    input:focus, select:focus, textarea:focus { border-color: var(--acc-2); box-shadow: 0 0 0 3px rgba(59,130,246,.15); }
+
+    .row { display: grid; grid-template-columns: repeat(12, 1fr); gap: 12px; }
+    .col-6 { grid-column: span 6; } .col-4 { grid-column: span 4; } .col-8 { grid-column: span 8; } .col-12 { grid-column: span 12; }
+    @media (max-width: 720px) { .col-6, .col-4, .col-8 { grid-column: span 12; } }
+
+    .stepper { display: flex; gap: 10px; padding: 10px 22px; align-items: center; flex-wrap: wrap; border-bottom: 1px dashed var(--border); }
+    .chip { display: inline-flex; align-items: center; gap: 10px; padding: 8px 12px; border: 1px solid var(--border); border-radius: 999px; background: #0b1220; font-size: .85rem; color: var(--muted); cursor: pointer; }
+    .chip[data-active="true"] { border-color: var(--acc-2); color: var(--text); box-shadow: 0 0 0 3px rgba(59,130,246,.15); }
+
+    .list { display: grid; gap: 10px; }
+    .course {
+      display: grid; grid-template-columns: 1fr auto auto; gap: 10px; align-items: center; padding: 12px; border: 1px solid var(--border); border-radius: 12px; background: #0b1220;
+    }
+    .course small { color: var(--muted); }
+    .price { font-variant-numeric: tabular-nums; }
+
+    .totals { border-top: 1px dashed var(--border); padding-top: 10px; display: grid; gap: 6px; }
+    .totals div { display: flex; justify-content: space-between; align-items: center; }
+
+    .btns { display: flex; gap: 10px; flex-wrap: wrap; }
+    button, .btn-link {
+      appearance: none; border: 1px solid var(--border); background: #0b1220; color: var(--text); padding: 12px 16px; border-radius: 12px; cursor: pointer; font-weight: 600;
+    }
+    button.primary { background: linear-gradient(180deg, rgba(34,197,94,.25), rgba(34,197,94,.15)); border-color: rgba(34,197,94,.5); }
+    button.primary:hover { filter: brightness(1.1); }
+    button.ghost { background: transparent; }
+
+    .notice { font-size: .9rem; color: var(--muted); }
+    .ok { color: var(--acc); }
+    .bad { color: var(--danger); }
+
+    .receipt { padding: 16px; border: 1px dashed var(--border); border-radius: 12px; background: rgba(255,255,255,.02); display: none; }
+    .receipt.show { display: block; }
+    .kbd { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; background: #0b1220; border: 1px solid var(--border); padding: 2px 6px; border-radius: 6px; }
+
+    .footer { text-align: center; color: var(--muted); padding: 20px; font-size: .85rem; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Demo de Matrícula y Pagos</h1>
+    <p>Formulario de ejemplo para registrar estudiantes, seleccionar cursos y simular un pago. <span class="kbd">100% front‑end</span>.</p>
+  </header>
+
+  <div class="container">
+    <div class="card" id="card">
+      <div class="stepper">
+        <span class="chip" data-step="1" data-active="true">1 · Datos del estudiante</span>
+        <span class="chip" data-step="2">2 · Selección de cursos</span>
+        <span class="chip" data-step="3">3 · Resumen y pago</span>
+      </div>
+
+      <div class="content">
+        <!-- Paso 1: Datos del estudiante -->
+        <section id="step-1" class="step">
+          <div class="row">
+            <label class="col-6">
+              Nombres y apellidos
+              <input required id="fullName" placeholder="Ej: Ana Pérez" />
+            </label>
+            <label class="col-6">
+              DNI / Documento
+              <input required id="dni" minlength="8" maxlength="12" placeholder="Ej: 76543210" />
+            </label>
+            <label class="col-6">
+              Correo electrónico
+              <input required id="email" type="email" placeholder="ana@correo.com" />
+            </label>
+            <label class="col-6">
+              Teléfono
+              <input id="phone" type="tel" placeholder="999 888 777" />
+            </label>
+            <label class="col-6">
+              Fecha de nacimiento
+              <input id="birth" type="date" />
+            </label>
+            <label class="col-6">
+              Modalidad
+              <select id="mode">
+                <option value="presencial">Presencial</option>
+                <option value="virtual">Virtual</option>
+                <option value="mixta">Mixta</option>
+              </select>
+            </label>
+          </div>
+          <div class="btns">
+            <button class="primary" data-next>Continuar</button>
+          </div>
+        </section>
+
+        <!-- Paso 2: Cursos -->
+        <section id="step-2" class="step" hidden>
+          <div class="list" id="courseList"></div>
+
+          <div class="row">
+            <label class="col-8">
+              Código de descuento
+              <input id="coupon" placeholder="Ej: DEMO10" />
+              <small class="notice">Aplica 10% de descuento con <span class="kbd">DEMO10</span>.</small>
+            </label>
+            <div class="col-4" style="display:flex; align-items:end;">
+              <button id="applyCoupon">Aplicar cupón</button>
+            </div>
+          </div>
+
+          <div class="totals">
+            <div><span>Subtotal</span><strong class="price" id="subtotal">S/ 0.00</strong></div>
+            <div><span>IGV (18%)</span><strong class="price" id="igv">S/ 0.00</strong></div>
+            <div><span>Total</span><strong class="price" id="total">S/ 0.00</strong></div>
+          </div>
+
+          <div class="btns">
+            <button class="ghost" data-prev>Volver</button>
+            <button class="primary" data-next disabled id="toPayment">Ir a pago</button>
+          </div>
+        </section>
+
+        <!-- Paso 3: Pago -->
+        <section id="step-3" class="step" hidden>
+          <div class="row">
+            <label class="col-6">
+              Método de pago
+              <select id="payMethod">
+                <option value="tarjeta">Tarjeta</option>
+                <option value="transferencia">Transferencia</option>
+              </select>
+            </label>
+            <div class="col-6"></div>
+
+            <div class="col-12" id="cardFields">
+              <div class="row">
+                <label class="col-8">Número de tarjeta<input id="cardNumber" placeholder="4111 1111 1111 1111" minlength="15" maxlength="19" /></label>
+                <label class="col-2">Vencimiento<input id="cardExp" placeholder="MM/AA" /></label>
+                <label class="col-2">CVV<input id="cardCvv" placeholder="123" minlength="3" maxlength="4" /></label>
+              </div>
+            </div>
+
+            <div class="col-12" id="bankFields" hidden>
+              <div class="card" style="background: #0b1220;">
+                <div class="content">
+                  <div><strong>Datos para transferencia</strong></div>
+                  <div class="row">
+                    <label class="col-6">Banco<input value="BCP" readonly /></label>
+                    <label class="col-6">Cuenta (CCI)<input value="002-000123456789012-34" readonly /></label>
+                    <label class="col-12">Referencia<input id="ref" placeholder="Número de operación" /></label>
+                  </div>
+                  <small class="notice">Simulación: no se conecta a ningún servicio bancario.</small>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="totals" style="margin-top:6px">
+            <div><span>Total a pagar</span><strong class="price" id="payTotal">S/ 0.00</strong></div>
+          </div>
+
+          <div class="btns">
+            <button class="ghost" data-prev>Volver</button>
+            <button class="primary" id="payBtn">Confirmar pago</button>
+          </div>
+
+          <div class="receipt" id="receipt">
+            <h3 style="margin-top:0">Comprobante</h3>
+            <div id="receiptBody"></div>
+            <div class="btns" style="margin-top:10px">
+              <button id="printBtn">Imprimir</button>
+              <button id="downloadBtn">Descargar (.txt)</button>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <p class="footer">Hecho para demo · No se almacenan datos · Moneda: PEN</p>
+  </div>
+
+  <script>
+    // ======= Utilidades =======
+    const PEN = new Intl.NumberFormat('es-PE', { style: 'currency', currency: 'PEN' });
+    const qs = (s, el=document) => el.querySelector(s);
+    const qsa = (s, el=document) => Array.from(el.querySelectorAll(s));
+
+    const courses = [
+      { id: 'MAT101', nombre: 'Matemática I', creditos: 4, precio: 380.00 },
+      { id: 'PRO102', nombre: 'Programación Básica', creditos: 3, precio: 420.00 },
+      { id: 'COM103', nombre: 'Comunicación', creditos: 2, precio: 260.00 },
+      { id: 'BD201', nombre: 'Bases de Datos', creditos: 3, precio: 520.00 },
+      { id: 'WEB202', nombre: 'Desarrollo Web', creditos: 4, precio: 560.00 },
+    ];
+
+    const state = {
+      step: 1,
+      alumno: {},
+      seleccion: new Set(),
+      subtotal: 0,
+      igv: 0,
+      total: 0,
+      descuento: 0,
+      cupon: null,
+      pago: { metodo: 'tarjeta' }
+    };
+
+    function go(step){
+      state.step = step;
+      // step panels
+      qsa('.step').forEach((sec, i)=> sec.hidden = (i+1)!==step);
+      // chips
+      qsa('.chip').forEach(ch => ch.dataset.active = (Number(ch.dataset.step)===step));
+    }
+
+    function canNavigate(target){
+      if(target < state.step) return true; // siempre se puede retroceder
+      if(target === 2){
+        // Validar datos mínimos del alumno
+        const alumno = {
+          fullName: qs('#fullName').value.trim(),
+          dni: qs('#dni').value.trim(),
+          email: qs('#email').value.trim(),
+        };
+        if(!alumno.fullName || !alumno.dni || !alumno.email){
+          alert('Completa nombre, documento y correo para continuar.');
+          return false;
+        }
+        state.alumno = Object.assign({}, state.alumno, alumno);
+        return true;
+      }
+      if(target === 3){
+        if(state.seleccion.size===0){
+          alert('Selecciona al menos un curso para continuar.');
+          return false;
+        }
+        return true;
+      }
+      return true;
+    }
+
+    // ======= Navegación por chips =======
+    qsa('.chip').forEach(ch => {
+      ch.addEventListener('click', ()=>{
+        const target = Number(ch.dataset.step);
+        if(canNavigate(target)){
+          if(target===3) qs('#payTotal').textContent = PEN.format(state.total);
+          go(target);
+        }
+      });
+    });
+
+    // ======= Paso 1 =======
+    qsa('[data-next]').forEach(btn=> btn.addEventListener('click', ()=>{
+      if(state.step===1){
+        const alumno = {
+          fullName: qs('#fullName').value.trim(),
+          dni: qs('#dni').value.trim(),
+          email: qs('#email').value.trim(),
+          phone: qs('#phone').value.trim(),
+          birth: qs('#birth').value,
+          mode: qs('#mode').value,
+        };
+        // Validaciones simples
+        if(!alumno.fullName || !alumno.dni || !alumno.email){
+          alert('Completa al menos nombre, documento y correo.');
+          return;
+        }
+        state.alumno = alumno;
+        go(2);
+      } else if(state.step===2){
+        if(state.seleccion.size===0){
+          alert('Selecciona al menos un curso.');
+          return;
+        }
+        qs('#payTotal').textContent = PEN.format(state.total);
+        go(3);
+      }
+    }));
+
+    qsa('[data-prev]').forEach(btn=> btn.addEventListener('click', ()=>{
+      if(state.step>1) go(state.step-1);
+    }));
+
+    // ======= Render cursos =======
+    const list = qs('#courseList');
+    function renderCourses(){
+      list.innerHTML = '';
+      courses.forEach(c => {
+        const row = document.createElement('div');
+        row.className = 'course';
+        row.innerHTML = `
+          <div>
+            <strong>${c.id} · ${c.nombre}</strong><br/>
+            <small>${c.creditos} crédito(s)</small>
+          </div>
+          <div class="price">${PEN.format(c.precio)}</div>
+          <div>
+            <input type="checkbox" data-id="${c.id}" aria-label="Seleccionar ${c.nombre}">
+          </div>
+        `;
+        list.appendChild(row);
+      });
+
+      // checkbox listeners
+      qsa('input[type="checkbox"]', list).forEach(cb => cb.addEventListener('change', (e)=>{
+        const id = e.target.dataset.id;
+        if(e.target.checked) state.seleccion.add(id); else state.seleccion.delete(id);
+        recalc();
+        qs('#toPayment').disabled = state.seleccion.size===0;
+      }));
+    }
+
+    function recalc(){
+      const selected = courses.filter(c => state.seleccion.has(c.id));
+      const subtotal = selected.reduce((s,c)=> s + c.precio, 0);
+      let descuento = 0;
+      if(state.cupon==='DEMO10') descuento = subtotal * 0.10;
+      const base = Math.max(subtotal - descuento, 0);
+      const igv = base * 0.18;
+      const total = base + igv;
+      state.subtotal = subtotal; state.igv = igv; state.total = total; state.descuento = descuento;
+      qs('#subtotal').textContent = PEN.format(subtotal);
+      qs('#igv').textContent = PEN.format(igv);
+      qs('#total').textContent = PEN.format(total);
+    }
+
+    // Cupón
+    qs('#applyCoupon').addEventListener('click', ()=>{
+      state.cupon = (qs('#coupon').value || '').trim().toUpperCase();
+      if(state.cupon==='DEMO10'){
+        alert('Cupón aplicado: 10%');
+      } else if(state.cupon){
+        alert('Cupón inválido');
+        state.cupon = null;
+      }
+      recalc();
+      qs('#payTotal').textContent = PEN.format(state.total);
+    });
+
+    // ======= Pago =======
+    const payMethod = qs('#payMethod');
+    const cardFields = qs('#cardFields');
+    const bankFields = qs('#bankFields');
+    payMethod.addEventListener('change', ()=>{
+      const m = payMethod.value;
+      state.pago.metodo = m;
+      cardFields.hidden = m!== 'tarjeta';
+      bankFields.hidden = m!== 'transferencia';
+    });
+
+    function maskCard(num){
+      const d = num.replace(/\D/g,'');
+      if(d.length < 4) return '****';
+      return d.replace(/\d(?=\d{4})/g,'•').replace(/(.{4})/g,'$1 ').trim();
+    }
+
+    function buildReceipt(){
+      const alumno = state.alumno;
+      const sel = courses.filter(c => state.seleccion.has(c.id));
+      const ahora = new Date();
+      const payId = 'PG' + ahora.getTime().toString(36).toUpperCase();
+      const met = state.pago.metodo;
+      const tarjeta = met==='tarjeta' ? maskCard(qs('#cardNumber').value) : null;
+      const ref = met==='transferencia' ? (qs('#ref').value || '—') : null;
+
+      const html = `
+        <div><strong>ID de pago:</strong> ${payId}</div>
+        <div><strong>Fecha:</strong> ${ahora.toLocaleString('es-PE')}</div>
+        <hr style="border-color: var(--border)">
+        <div><strong>Alumno:</strong> ${alumno.fullName} (${alumno.dni}) · ${alumno.email}</div>
+        <div><strong>Modalidad:</strong> ${alumno.mode}</div>
+        <div style="margin-top:6px"><strong>Cursos (${sel.length}):</strong></div>
+        <ul style="margin-top:6px">${sel.map(c=>`<li>${c.id} - ${c.nombre} · ${PEN.format(c.precio)}</li>`).join('')}</ul>
+        <div class="totals" style="margin:8px 0 0 0">
+          ${state.descuento>0 ? `<div><span>Descuento</span><strong class="ok">-${PEN.format(state.descuento)}</strong></div>`:''}
+          <div><span>Subtotal</span><strong>${PEN.format(state.subtotal)}</strong></div>
+          <div><span>IGV 18%</span><strong>${PEN.format(state.igv)}</strong></div>
+          <div><span>Total</span><strong>${PEN.format(state.total)}</strong></div>
+        </div>
+        <div style="margin-top:8px"><strong>Método:</strong> ${met==='tarjeta' ? `Tarjeta ${tarjeta}` : `Transferencia · Ref: ${ref}`}</div>
+        <div class="notice">* Documento de referencia para demostración.</div>
+      `;
+      qs('#receiptBody').innerHTML = html;
+      qs('#receipt').classList.add('show');
+
+      // Descargar como .txt
+      const plain = [
+        `ID: ${payId}`,
+        `Fecha: ${ahora.toLocaleString('es-PE')}`,
+        `Alumno: ${alumno.fullName} (${alumno.dni}) - ${alumno.email}`,
+        `Cursos:`,
+        ...sel.map(c=>`  - ${c.id} ${c.nombre} | ${PEN.format(c.precio)}`),
+        state.descuento>0 ? `Descuento: -${PEN.format(state.descuento)}` : '',
+        `Subtotal: ${PEN.format(state.subtotal)}`,
+        `IGV (18%): ${PEN.format(state.igv)}`,
+        `Total: ${PEN.format(state.total)}`,
+        `Método: ${met==='tarjeta' ? `Tarjeta ${tarjeta}` : `Transferencia · Ref: ${ref}`}`,
+      ].filter(Boolean).join('\n');
+
+      qs('#downloadBtn').onclick = ()=>{
+        const blob = new Blob([plain], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = `comprobante_${payId}.txt`; a.click();
+        setTimeout(()=>URL.revokeObjectURL(url), 500);
+      };
+    }
+
+    qs('#payBtn').addEventListener('click', ()=>{
+      // Validación mínima según método
+      if(state.pago.metodo==='tarjeta'){
+        const num = qs('#cardNumber').value.replace(/\s+/g,'');
+        const exp = qs('#cardExp').value.trim();
+        const cvv = qs('#cardCvv').value.trim();
+        if(num.length<15 || !/^(0[1-9]|1[0-2])\/(\d{2})$/.test(exp) || cvv.length<3){
+          alert('Datos de tarjeta inválidos (solo demo).');
+          return;
+        }
+      } else {
+        if(!qs('#ref').value.trim()){
+          alert('Ingresa la referencia de la transferencia.');
+          return;
+        }
+      }
+      buildReceipt();
+      window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+    });
+
+    qs('#printBtn').addEventListener('click', ()=> window.print());
+
+    // Init
+    renderCourses();
+  </script>
+</body>
+</html>
